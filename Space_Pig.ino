@@ -6,11 +6,12 @@
 #include <avr/pgmspace.h>
 #include <EEPROM.h>
 
-#define OLED_MOSI   9
-#define OLED_CLK   10
-#define OLED_DC    11
-#define OLED_CS    12
-#define OLED_RESET 13
+#define OLED_MOSI    2
+#define OLED_CLK     3
+#define OLED_DC      4
+#define OLED_RESET   5
+#define OLED_CS      6
+
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 
@@ -24,7 +25,6 @@ Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 #define SMALLNUM false
 
 #define CENTERED 100
-
 
 
 #define NOTE_C6  1047
@@ -66,7 +66,7 @@ int pitches[] PROGMEM = {
     NOTE_C7, NOTE_B6, NOTE_C7, NOTE_D7, NOTE_C7, NOTE_B6, NOTE_G7, NOTE_F7, NOTE_E7, NOTE_F7, NOTE_E7, NOTE_D7, 
     NOTE_C7, NOTE_B6, NOTE_C7, NOTE_D7, NOTE_C7, NOTE_B6, NOTE_C7, NOTE_D7, NOTE_F7, NOTE_A7, NOTE_C8, NOTE_B7,
    
-    NOTE_A7, NOTE_FS7, NOTE_DS7, NOTE_C7, NOTE_A6, NOTE_FS6, NOTE_DS6, NOTE_FS6, NOTE_A6, NOTE_FS6, NOTE_A6, NOTE_DS6, 
+    NOTE_A8, NOTE_FS7, NOTE_DS7, NOTE_C7, NOTE_A7, NOTE_FS6, NOTE_DS6, NOTE_FS6, NOTE_A7, NOTE_FS6, NOTE_A7, NOTE_DS6, 
     NOTE_E6, NOTE_GS6, NOTE_B6, NOTE_GS6, NOTE_B6, NOTE_E7, NOTE_GS6, NOTE_B6, NOTE_E7, NOTE_B6, NOTE_GS7, NOTE_E7,
 
     NOTE_END
@@ -123,10 +123,10 @@ static unsigned char ForYour8th[] PROGMEM = { 15, 24, 27, 0, 34, 24, 30, 27, 0, 
 static unsigned char Birthday[] PROGMEM = { 11, 18, 27, 29, 17, 13, 10, 34, 99 };
 static unsigned char TenthOctober2014[] PROGMEM = { 1, 24, 29, 17, 0, 24, 12, 29, 24, 11, 14, 27, 0, 2, 24, 1, 4, 99 };
 static unsigned char Perfect[] PROGMEM = { 25, 14, 27, 15, 14, 12, 29, 36, 99 };
-static unsigned char GraphicsBy[] PROGMEM = { 16, 27, 10, 24, 17, 18, 12, 28, 99 };
+static unsigned char GraphicsBy[] PROGMEM = { 16, 27, 10, 25, 17, 18, 12, 28, 99 };
 static unsigned char GameDesignBy[] PROGMEM = { 16, 10, 22, 14, 0, 13, 14, 28, 18, 16, 23, 99 };
 static unsigned char MusicBy[] PROGMEM = { 22, 30, 28, 18, 12, 99 };
-static unsigned char ProgrammingBy[] PROGMEM = { 25, 27, 24, 16, 27, 10, 22, 22, 18, 23, 16, 99 };
+static unsigned char ProgrammingBy[] PROGMEM = { 25, 27, 24, 16, 27, 10, 22, 22, 18, 23, 16, 0, 11, 34, 99 };
 static unsigned char edquek[] PROGMEM = { 14, 13, 26, 30, 14, 20, 40, 17, 24, 29, 22, 10, 18, 21, 41, 12, 24, 22, 99 };
 static unsigned char LoveFromPapi[] PROGMEM = { 21, 24, 31, 14, 0, 15, 27, 24, 22, 0, 25, 10, 25, 10, 99 };
 static unsigned char BlankLine[] PROGMEM = { 99 };
@@ -186,6 +186,7 @@ class explosionDot
 point myAliens[MAX_ALIENS];
 explosionDot myExplosionDots[MAX_EXPLOSION_DOTS];
 char bossHealth;
+byte level;
 
 class star
 {   
@@ -260,8 +261,11 @@ class bullet
                     break;
                 
                 case AlienBullet:
-                    x -= 4;
-  
+                
+                    if (level <= 10) x-= 2;
+                    if (level > 10 && level <= 17) x-= 3;
+                    if (level > 17) x -= 4;
+                    
                     if (x <= 4)
                     {
                         alive = false;
@@ -328,7 +332,7 @@ byte getReadyCounter = 0;
 byte flashCounter = 0;
 bool showText = true;
 byte lives;
-byte level;
+
 int score;
 byte numAliens;
 byte aliensInLevel;
@@ -425,15 +429,19 @@ const unsigned char SpaceWiggy [] PROGMEM = {
 
 
 
+unsigned char fpsString[] PROGMEM = { 15, 25, 28, 99 };
+long timerCounter;
+int fpsCounter, fpsCounterOld;
 
 
+/*
 int freeRam () 
 {
     extern int __heap_start, *__brkval; 
     int v; 
     return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
-
+*/
 
 void setup()   
 {                
@@ -441,9 +449,9 @@ void setup()
     display.begin(SSD1306_SWITCHCAPVCC);
     display.display();
 
-    pinMode(2, INPUT);
-    pinMode(3, INPUT);
-    pinMode(4, INPUT);
+    pinMode(10, INPUT);
+    pinMode(11, INPUT);
+    pinMode(12, INPUT);
     
     for (byte m = 0; m < MAX_BULLETS; m++)
     {
@@ -475,11 +483,11 @@ void setup()
             continue;
         }       
         
-        if (notePitch != NOTE_BLANK) tone(5, notePitch, noteLength * 85);
+        if (notePitch != NOTE_BLANK) tone(13, notePitch, noteLength * 85);
         
         delay(noteLength * 85);
 
-        if (digitalRead(4) == HIGH) 
+        if (digitalRead(12) == HIGH) 
         {
             playFireSound();
             break;  
@@ -488,6 +496,7 @@ void setup()
         j++;
     };     
 }
+
 
 
 int localvec[20];
@@ -600,6 +609,8 @@ void loop()
     
     display.clearDisplay();
     
+  
+    
     for (int i = 0; i < MAX_STARS; i++) { ob[i].show(); } // DRAW STARFIELD
                 
     flashAlienBullet = !flashAlienBullet;
@@ -636,23 +647,23 @@ void loop()
                 break;
             case 18: case 19: case 20: case 21: case 22:
                 firingProb = 80;
-                firingMaxBullet = 4;
+                firingMaxBullet = 3;
                 break;
             case 5:
-                firingProb = 20;
+                firingProb = 30;
                 firingMaxBullet = 3;
                 break;
             case 11:
-                firingProb = 15;
-                firingMaxBullet = 4;
+                firingProb = 30;
+                firingMaxBullet = 3;
                 break;
             case 17:
-                firingProb = 10;
-                firingMaxBullet = 5;
+                firingProb = 20;
+                firingMaxBullet = 4;
                 break;
             case 23:
-                firingProb = 5;
-                firingMaxBullet = MAX_ALIEN_BULLETS;
+                firingProb = 10;
+                firingMaxBullet = 4;
                 break;               
         }
         
@@ -767,9 +778,9 @@ void loop()
         
  //       for(;;);
         
-        Serial.print(F("Free Ram: "));      
+  /*      Serial.print(F("Free Ram: "));      
         Serial.println(freeRam());    
-        
+    */    
         flashCounter = 0;
         stage = GetReady; 
     }
@@ -847,6 +858,7 @@ void loop()
                             break;
                         case 23:
                             drawString(CENTERED, 36, bossHelloKittyString);
+                            drawString(CENTERED, 48, SpaceSkeleton);                       
                             break;
                     }
                 }
@@ -859,6 +871,7 @@ void loop()
                     if (level == 23)
                     {      
                         getReadyCounter = 0;        
+                        score += lives * 500;
                         stage = Endgame;
                     }
                     else
@@ -880,13 +893,6 @@ void loop()
     
     if (stage == CherryTime)
     {
-      /*
-        static int nextCounter = 0;
-        static char periodCounter = 0;
-        static int cherryTimeCounter = 0; //even == cherry time, odd == over
-        static byte eaten = 0;
-        static byte oinkCounter = 0;
-*/
         if (++periodCounter == 6)
         {
             periodCounter = 0;
@@ -977,14 +983,19 @@ void loop()
                 if ((cherryTimeCounter == 1 && eaten > 10) || (cherryTimeCounter == 3 && eaten > 20) || (cherryTimeCounter == 5 && eaten > 30))
                 {
                     drawString(CENTERED, 40, ExtraLife);                 
-                    if (lives < 5 && getReadyCounter == 76) lives++;
+                    if (getReadyCounter == 76) lives++;
                 } 
                 
                 if ((cherryTimeCounter == 1 && eaten == 20) || (cherryTimeCounter == 3 && eaten == 40) || (cherryTimeCounter == 5 && eaten == 60))
                 {
                     drawString(CENTERED, 48, Perfect); 
+                    drawString(CENTERED, 56, ExtraLife);   
                     
-                    if (getReadyCounter == 76) score += cherryTimeCounter * 1000;
+                    if (getReadyCounter == 76) 
+                    {
+                        score += cherryTimeCounter * 1000;
+                        lives++;
+                    }
                 }
             }
                       
@@ -1082,35 +1093,63 @@ void loop()
     {
         display.drawBitmap(103, 31, SpaceWiggy, 24, 32, WHITE);
         static int y = 63;
-                
-        drawString(CENTERED, y, Congratulations);
-        drawString(CENTERED, y + 10, BlankLine);
-        drawString(CENTERED, y + 20, YouHaveDefeated);
-        drawString(CENTERED, y + 30, TheDreaded);
-        drawString(CENTERED, y + 40, bossHelloKittyString);
-        drawString(CENTERED, y + 50, SpaceSkeleton);
-        drawString(CENTERED, y + 60, NowYouHaveSaved);
-        drawString(CENTERED, y + 70, TheUniverse);
-        drawString(CENTERED, y + 80, AndAllThePigs);
-        drawString(CENTERED, y + 90, AreHappy);
-        drawString(CENTERED, y + 100, BlankLine);
-        drawString(CENTERED, y + 110, TheEnd);
-        drawString(CENTERED, y + 120, BlankLine);
-        drawString(CENTERED, y + 130, SpacePig);
-        drawString(CENTERED, y + 140, ForYour8th);
-        drawString(CENTERED, y + 150, Birthday);
-        drawString(CENTERED, y + 160, TenthOctober2014);
-        drawString(CENTERED, y + 170, BlankLine);
-        drawString(CENTERED, y + 180, LoveFromPapi);
+        static int page = 0;
         
-        y--;  
-        
-        if (y < -190)
-        {
-            y = 63;
-            getReadyCounter = 0;
-            stage = GameOver;  
+        if (page == 0)
+        {        
+            drawString(CENTERED, y, Congratulations);
+            drawString(CENTERED, y + 10, BlankLine);
+            drawString(CENTERED, y + 20, YouHaveDefeated);
+            drawString(CENTERED, y + 30, TheDreaded);
+            drawString(CENTERED, y + 40, bossHelloKittyString);
+            drawString(CENTERED, y + 50, SpaceSkeleton);
+            drawString(CENTERED, y + 60, NowYouHaveSaved);
+            drawString(CENTERED, y + 70, TheUniverse);
+            drawString(CENTERED, y + 80, AndAllThePigs);
+            drawString(CENTERED, y + 90, AreHappy);
+            drawString(CENTERED, y + 100, BlankLine);
+            drawString(CENTERED, y + 110, BlankLine);
+            drawString(CENTERED, y + 120, BlankLine);
+            drawString(CENTERED, y + 130, SpacePig);
+            drawString(CENTERED, y + 140, ForYour8th);
+            drawString(CENTERED, y + 150, Birthday);
+            drawString(CENTERED, y + 160, TenthOctober2014);
+            drawString(CENTERED, y + 170, BlankLine);
+            drawString(CENTERED, y + 180, LoveFromPapi);
+            
+            if (--y < -190)
+            {
+                y = 63;
+                getReadyCounter = 0;
+                page++;
+            }
         }
+        else
+        {
+          
+            drawString(CENTERED, y, GameDesignBy);
+            drawString(CENTERED, y + 10, GraphicsBy);
+            drawString(CENTERED, y + 20, MusicBy);
+            drawString(CENTERED, y + 30, ProgrammingBy);
+            drawString(CENTERED, y + 40, BlankLine);
+            drawString(CENTERED, y + 50, edquek);  
+            drawString(CENTERED, y + 60, BlankLine);
+            drawString(CENTERED, y + 70, BlankLine);
+            drawString(CENTERED, y + 80, BlankLine);
+            drawString(CENTERED, y + 90, BlankLine);
+            drawString(CENTERED, y + 100, TheEnd);
+            drawString(CENTERED, y + 110, BlankLine);
+            drawString(CENTERED, y + 120, BlankLine);
+            drawString(CENTERED, y + 130, BlankLine); 
+   
+            if (--y == -140)
+            {
+                y = 63;
+                getReadyCounter = 0;
+                page = 0;
+                stage = GameOver; 
+            }         
+        }     
     }
     
     
@@ -1285,9 +1324,18 @@ void loop()
           drawNumber(75, 0, level, SMALLNUM);  
         }
       
-        for (byte i = 0; i < lives; i++)
+        if (lives >= 0 && lives <= 5)
         {
-            drawString(88 + i * 8, 0, heartString);  
+          for (byte i = 0; i < lives; i++)
+          {
+              drawString(88 + i * 8, 0, heartString);  
+          }
+        }
+        else
+        {
+            drawString(98, 0, heartString);    
+            drawChar(110, 0, 33);
+            drawNumber(118, 0, lives, SMALLNUM);
         }
     }
     
@@ -1295,9 +1343,8 @@ void loop()
     
     if (stage != PigHit)
     {    
-        if (digitalRead(2) == HIGH && pig_y > 6) pig_y -= 2;   // MOVE UP AND DOWN
-        
-        if (digitalRead(3) == HIGH && pig_y < 58) pig_y += 2;
+        if (digitalRead(10) == HIGH && pig_y > 6) pig_y -= 2;   // MOVE UP AND DOWN
+        if (digitalRead(11) == HIGH && pig_y < 58) pig_y += 2;
     }    
         
     
@@ -1401,7 +1448,7 @@ void loop()
         
         counterSinceFired++;
               
-        if (digitalRead(4) == HIGH)
+        if (digitalRead(12) == HIGH)
         {  
             if (bulletCount < MAX_BULLETS && counterSinceFired > 8)
             {   
@@ -1463,15 +1510,10 @@ void loop()
             
             if (alienBullets[i].x > 20) continue;
             else if (alienBullets[i].y < pig_y - 6) continue;
-            else if (alienBullets[i].y > pig_y + 7) continue;
+            else if (alienBullets[i].y > pig_y + 5) continue;
             else // PIG IS HIT!
-            {  
-                for (int j = 0; j < MAX_ALIEN_BULLETS; j++)
-                {
-                    alienBullets[j].alive = false;    
-                }
-                
-                     
+            {   
+                explode(alienBullets[i].x, alienBullets[i].y);     
                 stage = PigHit;
                 playPigHitSound();
                 lives--;
@@ -1672,7 +1714,7 @@ void loop()
             drawInitialsChar(72, 40, initials[2]);
             
 
-        if (digitalRead(2) == HIGH && counterSinceFired > 5)  
+        if (digitalRead(10) == HIGH && counterSinceFired > 5)  
         {
             counterSinceFired = 0;
             getReadyCounter = 0;
@@ -1680,7 +1722,7 @@ void loop()
             if (initials[whichLetter] > 42) initials[whichLetter] = 0;  
         }
         
-        if (digitalRead(3) == HIGH && counterSinceFired > 5)
+        if (digitalRead(11) == HIGH && counterSinceFired > 5)
         {
             counterSinceFired = 0;
             getReadyCounter = 0;
@@ -1688,11 +1730,13 @@ void loop()
             if (initials[whichLetter] < 0) initials[whichLetter] = 42;  
         }
         
-        if (digitalRead(4) == HIGH && counterSinceFired > 5)
+        if (digitalRead(12) == HIGH && counterSinceFired > 5)
         {
             whichLetter++;
             getReadyCounter = 0;
             counterSinceFired = 0;
+               
+            initials[whichLetter] = 10;   
                
             if (whichLetter == 3)
             {
@@ -1702,9 +1746,10 @@ void loop()
             }
          }
        
-         if (getReadyCounter == 500)
+         if (getReadyCounter == 255)
          {
              getReadyCounter = 0;
+             writeHighScore(score);
              stage = Attract; 
          }  
     }
@@ -1760,7 +1805,7 @@ void loop()
         
         if (flashCounter > 20) drawString(CENTERED, 56, PressFireToPlay);
               
-        if (digitalRead(4) == HIGH && getReadyCounter > 20)
+        if (digitalRead(12) == HIGH && getReadyCounter > 20)
        {
            playFireSound();
            getReadyCounter = 0;
@@ -1962,20 +2007,20 @@ static unsigned char inv[] PROGMEM =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // BLANK cos BOSS HAVE OWN GRAPHICS
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
     
-    0x20, 0x41, 0x8, 0x3F, 0xC6, 0xF6, 0xFF, 0xFB, 0xFD, 0xA0, 0x51, 0x98,
-    0x20, 0x49, 0x9, 0xBF, 0xDE, 0xF7, 0xFF, 0xF3, 0xFC, 0x20, 0x44, 0x2,
+    0x80, 0x1C, 0x3, 0x7F, 0xE7, 0x32, 0x3F, 0xC3, 0xC, 0x1F, 0x80, 0x0,
+    0x80, 0x1C, 0x3, 0x7F, 0xE4, 0xCE, 0x3F, 0xC2, 0x4, 0x10, 0x80, 0xF0,
     
-    0xF, 0x7, 0xFE, 0xFF, 0xFE, 0x67, 0xFF, 0xF1, 0x98, 0x36, 0xCC, 0x3,
-    0xF, 0x7, 0xFE, 0xFF, 0xFE, 0x67, 0xFF, 0xF3, 0x9C, 0x66, 0x63, 0xC,
+    0x9, 0x0, 0x61, 0x46, 0x2B, 0xFC, 0x26, 0x43, 0xFC, 0x16, 0x82, 0x10,
+    0x6, 0x8, 0x60, 0x46, 0x23, 0xFD, 0x26, 0x43, 0xFC, 0x16, 0x80, 0x84,
     
-    0x6, 0x0, 0xF0, 0x1F, 0x83, 0x6C, 0x3F, 0xC1, 0x68, 0x20, 0x41, 0x8,
-    0x6, 0x0, 0xF0, 0x1F, 0x83, 0x6C, 0x3F, 0xC0, 0x90, 0x16, 0x82, 0x94,
+    0x20, 0x43, 0xFC, 0x2B, 0x40, 0xF0, 0xB, 0x7, 0xFE, 0x49, 0x21, 0x98,
+    0x20, 0x43, 0xFC, 0x2B, 0x47, 0xFE, 0x49, 0x20, 0x90, 0x9, 0x1, 0x98,
     
-    0x9, 0x8, 0x91, 0xFF, 0xF1, 0x68, 0xFF, 0xFC, 0xF3, 0x8F, 0x10, 0x60,
-    0x9, 0x8, 0x91, 0xFF, 0xF1, 0x68, 0x1F, 0x87, 0xFE, 0xEF, 0x7C, 0x63,
+    0x1F, 0x82, 0xEC, 0x66, 0x6E, 0x67, 0xFF, 0xFF, 0xFF, 0x6D, 0xB2, 0x49,
+    0x1F, 0x82, 0x64, 0x66, 0x6F, 0x77, 0xFF, 0xFF, 0xFF, 0xDB, 0x69, 0x24,
     
-    0xC6, 0x3E, 0xF7, 0x7F, 0xE1, 0xF8, 0x16, 0x8F, 0xFF, 0x89, 0x10, 0x90,
-    0x6, 0x8, 0xF1, 0xCF, 0x3F, 0xFF, 0x16, 0x8F, 0xFF, 0x89, 0x10, 0x90,
+    0xF, 0x3, 0xFC, 0xE, 0xE0, 0x3F, 0x3, 0xF0, 0xFE, 0x3F, 0xC0, 0xF0,
+    0xF, 0x3, 0xFC, 0x7E, 0xEF, 0xFF, 0xFF, 0xF7, 0xFE, 0x3F, 0xC0, 0xF0,
     
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // BLANK cos BOSS HAVE OWN GRAPHICS
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2062,7 +2107,7 @@ void playFireSound()
 {
     for (int j = 6000; j > 4500; j -=100)
     {
-        tone(5, j, 10);
+        tone(13, j, 10);
         delay(5);
     } 
 }
@@ -2071,7 +2116,7 @@ void playAlienFireSound()
 {
     for (int j = 2000; j < 3500; j +=100)
     {
-        tone(5, j, 10);
+        tone(13, j, 10);
         delay(5);
     } 
 }
@@ -2083,7 +2128,7 @@ void playAlienHitSound()
 {    
     for (int j = 0; j < 7; j++)
     {
-        tone(5, pgm_read_word(&(bleep2[j])), pgm_read_byte(&(lengths2[j])) * 50);
+        tone(13, pgm_read_word(&(bleep2[j])), pgm_read_byte(&(lengths2[j])) * 50);
         delay (35);
     } 
 }    
@@ -2091,14 +2136,14 @@ void playAlienHitSound()
   
 void playPigHitSound()
 {
-    tone(5, 10, 100);
+    tone(13, 10, 100);
     delay (100);
-    tone(5, 100, 150);
+    tone(13, 100, 150);
     delay (150);
     delay(150);
-    tone(5, 10, 100);
+    tone(13, 10, 100);
     delay (100);
-    tone(5, 100, 150);
+    tone(13, 100, 150);
     delay (150);
 }
 
@@ -2110,7 +2155,7 @@ void playCherryEatenSound()
 {       
     for (int j = 0; j < 4; j++)
     {
-        tone(5, pgm_read_word(&(bleep3[j])), pgm_read_byte(&(lengths3[j])) * 75);
+        tone(13, pgm_read_word(&(bleep3[j])), pgm_read_byte(&(lengths3[j])) * 75);
         delay (15);
     }
 }  
@@ -2118,7 +2163,7 @@ void playCherryEatenSound()
     
 void playBossHitSound() 
 {
-    tone(5, 150, 10);
+    tone(13, 150, 10);
     delay(5);
 }
 
@@ -2160,7 +2205,7 @@ void explode (int x, int y)
                 myExplosionDots[l].y = y;
                 myExplosionDots[l].dirx = random(3) + 1;
                 if (random(2) % 2) myExplosionDots[l].dirx *= -1;
-                myExplosionDots[l].diry = random(3) + 1;
+                myExplosionDots[l].diry = random(4) + 1;
                 if (random(2) % 2) myExplosionDots[l].diry *= -1;
                 myExplosionDots[l].lifespan = random(10) + 10;
             }
